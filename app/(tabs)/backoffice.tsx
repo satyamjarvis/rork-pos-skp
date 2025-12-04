@@ -1796,33 +1796,92 @@ export default function BackofficeScreen() {
                           style={styles.testButton}
                           onPress={async () => {
                             setTestingPrinter(printer.id);
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 10000);
+                            
                             try {
-                              const url = `http://${printer.ipAddress}:8001/StarWebPRNT/SendMessage`;
-                              const testXML = `<?xml version="1.0" encoding="UTF-8"?><StarWebPrintData><alignment value="center"/><emphasis><text>TEST PRINT</text></emphasis><br/><text>${new Date().toLocaleString('nb-NO')}</text><br/><text>Printer: ${printer.name}</text><br/><text>IP: ${printer.ipAddress}:8001</text><br/><text>Dette er en WebPRNT test</text><br/><br/><br/><cutpaper type="feed"/><action type="print" /></StarWebPrintData>`;
+                              const isRawPrinter = printer.printerType === 'raw' || printer.port === 9100;
+                              const port = printer.port || (isRawPrinter ? 9100 : 8001);
                               
-                              console.log('[TEST] Sending WebPRNT test to:', url);
-                              console.log('[TEST] XML body:', testXML.substring(0, 200));
-                              
-                              const response = await fetch(url, {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'text/xml; charset=utf-8',
-                                },
-                                body: testXML,
-                              });
-                              
-                              const responseText = await response.text();
-                              console.log('[TEST] Response status:', response.status);
-                              console.log('[TEST] Response:', responseText.substring(0, 500));
-                              
-                              if (response.ok || response.status === 0) {
-                                Alert.alert('Suksess', `Test-print sendt til ${printer.name}\n\nSjekk skriveren din nå.\n\nHvis den skriver HTTP-headers i stedet for kvittering, er WebPRNT IKKE aktivert på skriveren.`);
+                              if (isRawPrinter) {
+                                // RAW/ESC-POS test print
+                                const url = `http://${printer.ipAddress}:${port}`;
+                                const ESC = '\x1B';
+                                const GS = '\x1D';
+                                
+                                let testData = '';
+                                testData += ESC + '@'; // Initialize
+                                testData += ESC + 'a' + '\x01'; // Center
+                                testData += GS + '!' + '\x11'; // Large text
+                                testData += '*** TEST PRINT ***\n';
+                                testData += GS + '!' + '\x00'; // Normal text
+                                testData += `${new Date().toLocaleString('nb-NO')}\n`;
+                                testData += `Printer: ${printer.name}\n`;
+                                testData += `IP: ${printer.ipAddress}:${port}\n`;
+                                testData += 'RAW/ESC-POS test OK\n';
+                                testData += '\n\n\n';
+                                testData += GS + 'V' + '\x00'; // Cut paper
+                                
+                                console.log('[TEST] Sending RAW ESC/POS test to:', url);
+                                
+                                const response = await fetch(url, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/octet-stream',
+                                  },
+                                  body: testData,
+                                  signal: controller.signal,
+                                });
+                                
+                                clearTimeout(timeoutId);
+                                const responseText = await response.text().catch(() => '');
+                                console.log('[TEST] Response status:', response.status);
+                                
+                                if (response.ok || response.status === 0 || (response.status >= 200 && response.status < 300)) {
+                                  Alert.alert('Suksess', `Test-print sendt til ${printer.name}\n\nSjekk skriveren din nå.`);
+                                } else {
+                                  Alert.alert('Feil', `HTTP ${response.status}\n${responseText}\n\nSkriveren svarte, men godtok ikke kommandoen.`);
+                                }
                               } else {
-                                Alert.alert('Feil', `HTTP ${response.status}\n${responseText}\n\nSkriveren svarte, men godtok ikke WebPRNT.`);
+                                // WebPRNT test print
+                                const url = `http://${printer.ipAddress}:8001/StarWebPRNT/SendMessage`;
+                                const testXML = `<?xml version="1.0" encoding="UTF-8"?><StarWebPrintData><alignment value="center"/><emphasis><text>TEST PRINT</text></emphasis><br/><text>${new Date().toLocaleString('nb-NO')}</text><br/><text>Printer: ${printer.name}</text><br/><text>IP: ${printer.ipAddress}:8001</text><br/><text>Dette er en WebPRNT test</text><br/><br/><br/><cutpaper type="feed"/><action type="print" /></StarWebPrintData>`;
+                                
+                                console.log('[TEST] Sending WebPRNT test to:', url);
+                                console.log('[TEST] XML body:', testXML.substring(0, 200));
+                                
+                                const response = await fetch(url, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'text/xml; charset=utf-8',
+                                  },
+                                  body: testXML,
+                                  signal: controller.signal,
+                                });
+                                
+                                clearTimeout(timeoutId);
+                                const responseText = await response.text();
+                                console.log('[TEST] Response status:', response.status);
+                                console.log('[TEST] Response:', responseText.substring(0, 500));
+                                
+                                if (response.ok || response.status === 0) {
+                                  Alert.alert('Suksess', `Test-print sendt til ${printer.name}\n\nSjekk skriveren din nå.\n\nHvis den skriver HTTP-headers i stedet for kvittering, er WebPRNT IKKE aktivert på skriveren.`);
+                                } else {
+                                  Alert.alert('Feil', `HTTP ${response.status}\n${responseText}\n\nSkriveren svarte, men godtok ikke WebPRNT.`);
+                                }
                               }
                             } catch (error: any) {
+                              clearTimeout(timeoutId);
                               console.error('[TEST] Error:', error);
-                              Alert.alert('Feil', `Kunne ikke koble til skriveren:\n${error.message}\n\nSjekk at:\n1. IP-adresse er riktig\n2. Skriver er på\n3. På samme WiFi\n4. WebPRNT aktivert`);
+                              
+                              let errorMessage = error.message || 'Ukjent feil';
+                              if (error.name === 'AbortError') {
+                                errorMessage = 'Timeout - skriveren svarer ikke innen 10 sekunder.';
+                              } else if (error.message?.includes('Network request failed')) {
+                                errorMessage = 'Kan ikke nå skriveren. Kontroller nettverkstilkobling.';
+                              }
+                              
+                              Alert.alert('Feil', `Kunne ikke koble til skriveren:\n${errorMessage}\n\nSjekk at:\n1. IP-adresse er riktig\n2. Skriver er på\n3. På samme WiFi\n4. Riktig port (WebPRNT: 8001, RAW: 9100)`);
                             } finally {
                               setTestingPrinter(null);
                             }
@@ -1831,7 +1890,7 @@ export default function BackofficeScreen() {
                         >
                           <Activity size={14} color="#6366F1" />
                           <Text style={styles.testButtonText}>
-                            {testingPrinter === printer.id ? 'Tester...' : 'Test WebPRNT'}
+                            {testingPrinter === printer.id ? 'Tester...' : 'Test'}
                           </Text>
                         </TouchableOpacity>
                       )}
