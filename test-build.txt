@@ -1,0 +1,36 @@
+# Build Test Instructions
+
+Hvis du får "Bundling failed without error", prøv følgende:
+
+## 1. Rens cache
+```bash
+# Stop serveren først, deretter:
+npx expo start --clear
+
+# Eller:
+rm -rf .expo node_modules/.cache
+
+# Deretter start på nytt:
+npx expo start
+```
+
+## 2. Restart Metro Bundler
+- Trykk Ctrl+C for å stoppe serveren
+- Kjør `npx expo start` igjen
+- Trykk 'r' for å reloade
+
+## 3. Sjekk terminalen for mer detaljerte feilmeldinger
+- Ofte gir Metro Bundler mer detaljerte feilmeldinger i terminalen
+- Se etter stack traces eller spesifikke feilmeldinger
+
+## 4. Prøv web-versjon først
+```bash
+npx expo start --web
+```
+Dette kan gi mer detaljerte feilmeldinger.
+
+## Kjente problemer:
+- ESLint advarsler i contexts/PrinterContext.tsx (linje 739) - dette er ikke kritisk
+- React hooks advarsler - disse kan ignoreres for nå
+
+Ingen TypeScript-feil funnet! ✓

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kvittering</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @media print {
+      @page {
+        margin: 0;
+        size: 58mm auto;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      background: #f0f0f0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .receipt-container {
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .receipt {
+      background: white;
+      color: #000;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 8px;
+    }
+
+    /* 58mm bredde */
+    .w58 .receipt {
+      width: 58mm;
+    }
+
+    /* 80mm bredde */
+    .w80 .receipt {
+      width: 80mm;
+      font-size: 13px;
+    }
+
+    .receipt-header {
+      text-align: center;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #000;
+    }
+
+    .receipt-header h1 {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .receipt-header p {
+      font-size: 11px;
+      margin: 2px 0;
+    }
+
+    .receipt-info {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #000;
+      font-size: 11px;
+    }
+
+    .receipt-info-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 2px 0;
+    }
+
+    .receipt-items {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #000;
+    }
+
+    .receipt-item {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+      font-size: 12px;
+    }
+
+    .item-name {
+      flex: 1;
+      padding-right: 8px;
+    }
+
+    .item-qty {
+      width: 30px;
+      text-align: center;
+    }
+
+    .item-price {
+      width: 60px;
+      text-align: right;
+      font-weight: bold;
+    }
+
+    .receipt-totals {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #000;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+      font-size: 12px;
+    }
+
+    .total-row.grand-total {
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 2px solid #000;
+    }
+
+    .receipt-payment {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #000;
+    }
+
+    .payment-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .receipt-footer {
+      text-align: center;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+
+    .receipt-footer p {
+      margin: 3px 0;
+    }
+
+    .divider {
+      border-top: 1px dashed #000;
+      margin: 8px 0;
+    }
+
+    .divider-solid {
+      border-top: 2px solid #000;
+      margin: 8px 0;
+    }
+
+    /* Kontroller (kun for forhåndsvisning) */
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+
+    .controls button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 4px;
+      background: #007AFF;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .controls button:hover {
+      background: #0051D5;
+    }
+
+    .controls button.secondary {
+      background: #5856D6;
+    }
+
+    .controls button.secondary:hover {
+      background: #3634A3;
+    }
+  </style>
+</head>
+<body>
+  <!-- Kontroller (skjules ved print) -->
+  <div class="controls no-print">
+    <button onclick="toggleWidth()">Bytt bredde (58mm/80mm)</button>
+    <button onclick="window.print()" class="secondary">Skriv ut</button>
+  </div>
+
+  <!-- Kvittering -->
+  <div class="receipt-container w58" id="receiptContainer">
+    <div class="receipt">
+      <!-- Header -->
+      <div class="receipt-header">
+        <h1>OSCARS PIZZERIA</h1>
+        <p>Storgata 123</p>
+        <p>0182 Oslo</p>
+        <p>Tlf: 22 12 34 56</p>
+        <p>Org.nr: 123 456 789 MVA</p>
+      </div>
+
+      <!-- Info -->
+      <div class="receipt-info">
+        <div class="receipt-info-row">
+          <span>Dato:</span>
+          <span>09.10.2025 14:23</span>
+        </div>
+        <div class="receipt-info-row">
+          <span>Kasse:</span>
+          <span>Kasse 1</span>
+        </div>
+        <div class="receipt-info-row">
+          <span>Kvitt.nr:</span>
+          <span>245E7A1C</span>
+        </div>
+        <div class="receipt-info-row">
+          <span>Betjent av:</span>
+          <span>Kasserer 1</span>
+        </div>
+      </div>
+
+      <!-- Varer -->
+      <div class="receipt-items">
+        <div class="receipt-item">
+          <span class="item-name">Pizza Margherita</span>
+          <span class="item-qty">2x</span>
+          <span class="item-price">298,00</span>
+        </div>
+        <div class="receipt-item">
+          <span class="item-name">Pizza Pepperoni</span>
+          <span class="item-qty">1x</span>
+          <span class="item-price">169,00</span>
+        </div>
+        <div class="receipt-item">
+          <span class="item-name">Coca Cola 0,5L</span>
+          <span class="item-qty">3x</span>
+          <span class="item-price">89,00</span>
+        </div>
+        <div class="receipt-item">
+          <span class="item-name">Hvitløksbrød</span>
+          <span class="item-qty">1x</span>
+          <span class="item-price">49,00</span>
+        </div>
+      </div>
+
+      <!-- Summer -->
+      <div class="receipt-totals">
+        <div class="total-row">
+          <span>Delsum:</span>
+          <span>605,00 kr</span>
+        </div>
+        <div class="total-row">
+          <span>MVA 25%:</span>
+          <span>121,00 kr</span>
+        </div>
+        <div class="total-row grand-total">
+          <span>TOTALT:</span>
+          <span>605,00 kr</span>
+        </div>
+      </div>
+
+      <!-- Betaling -->
+      <div class="receipt-payment">
+        <div class="payment-row">
+          <span>Betalt (Kontant):</span>
+          <span>1000,00 kr</span>
+        </div>
+        <div class="payment-row">
+          <span>Vekslepenger:</span>
+          <span>395,00 kr</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="receipt-footer">
+        <p>Takk for besøket!</p>
+        <p>Velkommen igjen</p>
+        <div class="divider"></div>
+        <p style="font-size: 10px;">MVA-spesifikasjon:</p>
+        <p style="font-size: 10px;">25% MVA: 121,00 kr</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleWidth() {
+      const container = document.getElementById('receiptContainer');
+      if (container.classList.contains('w58')) {
+        container.classList.remove('w58');
+        container.classList.add('w80');
+      } else {
+        container.classList.remove('w80');
+        container.classList.add('w58');
+      }
+    }
+
+    // Automatisk tilpass @page size ved print
+    window.addEventListener('beforeprint', () => {
+      const container = document.getElementById('receiptContainer');
+      const is80mm = container.classList.contains('w80');
+      
+      const style = document.createElement('style');
+      style.id = 'print-style';
+      style.textContent = `
+        @page {
+          margin: 0;
+          size: ${is80mm ? '80mm' : '58mm'} auto;
+        }
+      `;
+      document.head.appendChild(style);
+    });
+
+    window.addEventListener('afterprint', () => {
+      const style = document.getElementById('print-style');
+      if (style) style.remove();
+    });
+  </script>
+</body>
+</html>

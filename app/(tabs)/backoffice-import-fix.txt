@@ -1,0 +1,35 @@
+Oppdater parseImportFile funksjonen i backoffice.tsx til å håndtere disse kolonnene:
+1. Produktnavn
+2. Pris
+3. Størrelse
+4. Størrelse navn  
+5. Størrelse pris
+6. Kategori
+7. Underkategori
+8. Tilleggsvarer
+9. Variant navn
+10. Variant pris
+11. Farge
+12. Bilde
+
+Nøkkelendringer:
+- Bruk "produktnavn" i stedet for "navn"
+- Legg til separete felt for størrelse info (størrelse, størrelse navn, størrelse pris)
+- Bruk "variant navn" og "variant pris" i stedet for bare "variant" og "variantpris"
+- Oppdater alle referanser til å bruke de nye feltnavnene
+
+Eksempel import fil structure:
+Produktnavn|Pris|Størrelse|Størrelse navn|Størrelse pris|Kategori|Underkategori|Tilleggsvarer|Variant navn|Variant pris|Farge|Bilde
+
+For kategorier (bare kategori fylt):
+|||||Pizza|||||||
+
+For underkategorier (kategori + underkategori):
+|||||Pizza|Vegetar||||||
+
+For tilleggsvarer (produktnavn + variant navn + variant pris):
+Ekstra ost||||||||Lite|10||
+
+For produkter (produktnavn + kategori + pris ELLER størrelse):
+Margherita|120||||Pizza||||||
+Vegetar||Liten||100|Pizza|Vegetar|||||
