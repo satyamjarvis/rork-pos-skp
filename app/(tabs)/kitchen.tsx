@@ -1051,7 +1051,8 @@ const styles = StyleSheet.create({
   fullscreenHeader: {
     backgroundColor: '#fff',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 50,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     flexDirection: 'row',
