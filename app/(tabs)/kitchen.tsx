@@ -14,6 +14,7 @@ import { useProducts } from '@/contexts/ProductsContext';
 import { usePrinter } from '@/contexts/PrinterContext';
 import { useBusinessSettings } from '@/contexts/BusinessSettingsContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, Stack } from 'expo-router';
 
 type OrderSizeView = 'small' | 'medium' | 'large';
 
@@ -30,11 +31,19 @@ export default function KitchenScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const toastOpacity = useRef(new Animated.Value(0)).current;
+  const navigation = useNavigation();
   
   useEffect(() => {
     loadSizePreference();
     loadAutoPrintPreference();
   }, []);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: !isFullscreen,
+      tabBarStyle: isFullscreen ? { display: 'none' } : { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+    });
+  }, [isFullscreen, navigation]);
 
   useEffect(() => {
     const activeOrders = orders.filter(o => o.status !== 'completed');
@@ -397,29 +406,31 @@ export default function KitchenScreen() {
 
 
   return (
-    <View style={styles.container}>
-      {toastMessage && (
-        <Animated.View 
-          style={[
-            styles.toast,
-            toastType === 'success' ? styles.toastSuccess : styles.toastError,
-            { opacity: toastOpacity }
-          ]}
-        >
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </Animated.View>
-      )}
-      {isFullscreen && (
-        <View style={styles.fullscreenHeader}>
-          <TouchableOpacity
-            style={styles.fullscreenExitButton}
-            onPress={() => setIsFullscreen(false)}
+    <>
+      <Stack.Screen options={{ headerShown: !isFullscreen }} />
+      <View style={styles.container}>
+        {toastMessage && (
+          <Animated.View 
+            style={[
+              styles.toast,
+              toastType === 'success' ? styles.toastSuccess : styles.toastError,
+              { opacity: toastOpacity }
+            ]}
           >
-            <Minimize2 size={20} color="#fff" />
-            <Text style={styles.fullscreenExitText}>Lukk fullskjerm</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </Animated.View>
+        )}
+        {isFullscreen && (
+          <View style={styles.fullscreenHeader}>
+            <TouchableOpacity
+              style={styles.fullscreenExitButton}
+              onPress={() => setIsFullscreen(false)}
+            >
+              <Minimize2 size={20} color="#fff" />
+              <Text style={styles.fullscreenExitText}>Lukk fullskjerm</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       
       {!isFullscreen && (
       <View style={styles.header}>
@@ -486,7 +497,8 @@ export default function KitchenScreen() {
           </View>
         </ScrollView>
       )}
-    </View>
+      </View>
+    </>
   );
 }
 
