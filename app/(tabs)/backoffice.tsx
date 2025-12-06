@@ -116,6 +116,368 @@ export default function BackofficeScreen() {
   const [parsedImportData, setParsedImportData] = useState<any[]>([]);
   const [importStatus, setImportStatus] = useState<'idle' | 'parsing' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string>('');
+  const [importResult, setImportResult] = useState<{
+    categories: number;
+    products: number;
+    addons: number;
+  } | null>(null);
+
+  const detectDelimiter = (line: string): string => {
+    const delimiters = ['|', ',', ';', '\t'];
+    let maxCount = 0;
+    let bestDelimiter = '|';
+    
+    delimiters.forEach(delimiter => {
+      const count = line.split(delimiter).length;
+      if (count > maxCount) {
+        maxCount = count;
+        bestDelimiter = delimiter;
+      }
+    });
+    
+    return bestDelimiter;
+  };
+
+  const parseCSV = (text: string): any[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length === 0) {
+      throw new Error('Filen er tom');
+    }
+
+    const delimiter = detectDelimiter(lines[0]);
+    console.log('[parseCSV] Detected delimiter:', delimiter);
+
+    const headerLine = lines[0];
+    const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase());
+    
+    console.log('[parseCSV] Headers:', headers);
+
+    const rows: any[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(delimiter);
+      
+      console.log(`[parseCSV] Row ${i + 1}:`, values);
+
+      rows.push({
+        productName: (values[0] || '').trim(),
+        price: (values[1] || '').trim(),
+        sizeName: (values[2] || '').trim(),
+        sizePrice: (values[3] || '').trim(),
+        category: (values[4] || '').trim(),
+        subcategory: (values[5] || '').trim(),
+        addons: (values[6] || '').trim(),
+        variantName: (values[7] || '').trim(),
+        variantPrice: (values[8] || '').trim(),
+        color: (values[9] || '').trim(),
+        image: (values[10] || '').trim(),
+      });
+    }
+
+    console.log('[parseCSV] Parsed', rows.length, 'rows');
+    return rows;
+  };
+
+  const parseExcel = async (uri: string): Promise<any[]> => {
+    console.log('[parseExcel] Reading Excel file...');
+    
+    const response = await fetch(uri);
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    
+    const workbook = XLSX.read(data, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][];
+    
+    if (jsonData.length === 0) {
+      throw new Error('Filen er tom');
+    }
+
+    console.log('[parseExcel] Total rows (including header):', jsonData.length);
+    console.log('[parseExcel] First row (headers):', jsonData[0]);
+
+    const rows: any[] = [];
+
+    for (let i = 1; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      
+      const productName = row[0] ? String(row[0]).trim() : '';
+      const price = row[1] ? String(row[1]).trim() : '';
+      const sizeName = row[2] ? String(row[2]).trim() : '';
+      const sizePrice = row[3] ? String(row[3]).trim() : '';
+      const category = row[4] ? String(row[4]).trim() : '';
+      const subcategory = row[5] ? String(row[5]).trim() : '';
+      const addons = row[6] ? String(row[6]).trim() : '';
+      const variantName = row[7] ? String(row[7]).trim() : '';
+      const variantPrice = row[8] ? String(row[8]).trim() : '';
+      const color = row[9] ? String(row[9]).trim() : '';
+      const image = row[10] ? String(row[10]).trim() : '';
+
+      const hasAnyData = productName || price || sizeName || sizePrice || category || subcategory || addons || variantName || variantPrice || color || image;
+      
+      if (!hasAnyData) {
+        console.log(`[parseExcel] Row ${i + 1}: TOMME - skipping completely empty row`);
+        continue;
+      }
+
+      console.log(`[parseExcel] Row ${i + 1}:`, { productName, price, sizeName, sizePrice, category, subcategory, addons, variantName, variantPrice, color, image });
+
+      rows.push({
+        productName,
+        price,
+        sizeName,
+        sizePrice,
+        category,
+        subcategory,
+        addons,
+        variantName,
+        variantPrice,
+        color,
+        image,
+      });
+    }
+
+    console.log('[parseExcel] *** TOTALT LEST:', rows.length, 'rader (ekskludert tomme rader) ***');
+    console.log('[parseExcel] *** ALLE RADER:', rows);
+    return rows;
+  };
+
+  const importDataFromFile = async () => {
+    if (parsedImportData.length === 0) {
+      Alert.alert('Feil', 'Ingen data å importere');
+      return;
+    }
+
+    try {
+      console.log('[importData] ========== STARTER IMPORT ==========');
+      console.log('[importData] Total rader:', parsedImportData.length);
+      
+      const categoryMap = new Map<string, string>();
+      const subcategoryMap = new Map<string, string>();
+      const addonMap = new Map<string, string>();
+      const productAddonMap = new Map<string, Set<string>>();
+      
+      let categoriesCreated = 0;
+      let productsCreated = 0;
+      let addonsCreated = 0;
+      let variantsCreated = 0;
+
+      console.log('\n[importData] ===== FASE 1: FINN UNIKE KATEGORIER =====');
+      const uniqueCategories = new Set<string>();
+      const uniqueSubcategories = new Map<string, string>();
+      
+      parsedImportData.forEach(row => {
+        if (row.category) uniqueCategories.add(row.category);
+        if (row.category && row.subcategory) {
+          uniqueSubcategories.set(`${row.category}:${row.subcategory}`, row.category);
+        }
+      });
+      
+      console.log('[importData] Fant', uniqueCategories.size, 'unike kategorier og', uniqueSubcategories.size, 'underkategorier');
+
+      for (const catName of uniqueCategories) {
+        const existing = categories.find(c => c.name.toLowerCase() === catName.toLowerCase() && !c.parentId);
+        if (existing) {
+          categoryMap.set(catName, existing.id);
+        } else {
+          const newCategory = await addCategory(catName);
+          if (newCategory) {
+            categoryMap.set(catName, newCategory.id);
+            categoriesCreated++;
+          }
+        }
+      }
+      
+      for (const [key, parentName] of uniqueSubcategories.entries()) {
+        const subcatName = key.split(':')[1];
+        const parentId = categoryMap.get(parentName);
+        
+        if (parentId) {
+          const existing = categories.find(c => 
+            c.name.toLowerCase() === subcatName.toLowerCase() && 
+            c.parentId === parentId
+          );
+          
+          if (existing) {
+            subcategoryMap.set(key, existing.id);
+          } else {
+            const newSubcategory = await addCategory(subcatName, undefined, parentId);
+            if (newSubcategory) {
+              subcategoryMap.set(key, newSubcategory.id);
+              categoriesCreated++;
+            }
+          }
+        }
+      }
+
+      console.log('\n[importData] ===== FASE 2: FINN UNIKE TILLEGGSVARER OG VARIANTER =====');
+      const uniqueAddons = new Set<string>();
+      const variantsByAddon = new Map<string, {name: string, price: number, color?: string}[]>();
+      
+      parsedImportData.forEach(row => {
+        if (row.addons || row.variantName) {
+          const addonName = row.addons || 'Standard Tillegg';
+          uniqueAddons.add(addonName);
+          
+          if (row.variantName && row.variantPrice) {
+            const price = parseFloat(row.variantPrice);
+            if (!isNaN(price)) {
+              if (!variantsByAddon.has(addonName)) {
+                variantsByAddon.set(addonName, []);
+              }
+              
+              const variants = variantsByAddon.get(addonName)!;
+              const exists = variants.some(v => 
+                v.name.toLowerCase() === row.variantName.toLowerCase() && v.price === price
+              );
+              
+              if (!exists) {
+                variants.push({
+                  name: row.variantName,
+                  price,
+                  color: row.color || undefined,
+                });
+              }
+            }
+          }
+        }
+      });
+      
+      console.log('[importData] Fant', uniqueAddons.size, 'unike tilleggsvarer');
+      
+      for (const addonName of uniqueAddons) {
+        const existing = tilleggsvarer.find(t => t.name.toLowerCase() === addonName.toLowerCase());
+        
+        if (existing) {
+          addonMap.set(addonName, existing.id);
+        } else {
+          const newAddon = await addTilleggsvare(addonName);
+          if (newAddon) {
+            addonMap.set(addonName, newAddon.id);
+            addonsCreated++;
+          }
+        }
+        
+        const addonId = addonMap.get(addonName);
+        if (addonId) {
+          const variants = variantsByAddon.get(addonName) || [];
+          for (const variant of variants) {
+            const newVariant = await addVariant(addonId, variant.name, variant.price, variant.color);
+            if (newVariant) variantsCreated++;
+          }
+        }
+      }
+      
+      parsedImportData.forEach(row => {
+        if (row.productName && row.addons) {
+          const addonId = addonMap.get(row.addons);
+          if (addonId) {
+            if (!productAddonMap.has(row.productName)) {
+              productAddonMap.set(row.productName, new Set<string>());
+            }
+            productAddonMap.get(row.productName)!.add(addonId);
+          }
+        }
+      });
+
+      console.log('\n[importData] ===== FASE 3: GRUPPERER PRODUKTER =====');
+      const productGroups = new Map<string, any[]>();
+      
+      parsedImportData.forEach(row => {
+        if (row.productName) {
+          const key = row.productName.toLowerCase().trim();
+          if (!productGroups.has(key)) productGroups.set(key, []);
+          productGroups.get(key)!.push(row);
+        }
+      });
+
+      console.log('[importData] ⭐ Fant', productGroups.size, 'unike produkter');
+
+      for (const [, rows] of productGroups.entries()) {
+        const productName = rows[0].productName;
+        
+        const allSizes = rows
+          .filter(row => row.sizeName && row.sizePrice)
+          .map(row => ({
+            id: `size_${Date.now()}_${Math.random()}`,
+            name: row.sizeName,
+            price: parseFloat(row.sizePrice),
+          }))
+          .filter(size => !isNaN(size.price));
+        
+        const hasSizes = allSizes.length > 0;
+        const categoryId = rows[0].subcategory ? 
+          subcategoryMap.get(`${rows[0].category}:${rows[0].subcategory}`) : 
+          categoryMap.get(rows[0].category);
+        const image = rows.find(r => r.image)?.image || '';
+        
+        if (hasSizes) {
+          const product = await addProduct(productName, 0);
+          if (product) {
+            const updates: any = { categoryId, sizes: allSizes, hasSize: true };
+            if (image) updates.image = image;
+            
+            const addonSet = productAddonMap.get(productName);
+            if (addonSet && addonSet.size > 0) {
+              updates.tilleggsvareIds = Array.from(addonSet);
+            }
+            
+            if (await updateProduct(product.id, updates)) productsCreated++;
+          }
+        } else {
+          const priceRow = rows.find(r => r.price);
+          if (priceRow) {
+            const price = parseFloat(priceRow.price);
+            if (!isNaN(price)) {
+              const product = await addProduct(productName, price);
+              if (product) {
+                const updates: any = { categoryId };
+                if (image) updates.image = image;
+                
+                const addonSet = productAddonMap.get(productName);
+                if (addonSet && addonSet.size > 0) {
+                  updates.tilleggsvareIds = Array.from(addonSet);
+                }
+                
+                if (await updateProduct(product.id, updates)) productsCreated++;
+              }
+            }
+          }
+        }
+      }
+
+      console.log('\n[importData] ===== OPPSUMMERING =====');
+      console.log('[importData] Kategorier:', categoriesCreated);
+      console.log('[importData] Produkter:', productsCreated);
+      console.log('[importData] Tilleggsvarer:', addonsCreated);
+      console.log('[importData] Varianter:', variantsCreated);
+
+      console.log('\n[importData] 🔄 Laster data...');
+      
+      console.log('[importData] ✅ Ferdig!');
+
+      setImportResult({
+        categories: categoriesCreated,
+        products: productsCreated,
+        addons: addonsCreated,
+      });
+
+      Alert.alert(
+        'Import fullført!',
+        `✅ Kategorier: ${categoriesCreated}\n✅ Produkter: ${productsCreated}\n✅ Tilleggsvarer: ${addonsCreated}\n✅ Varianter: ${variantsCreated}`,
+        [{ text: 'OK' }]
+      );
+
+    } catch (error: any) {
+      console.error('[importData] ❌ ERROR:', error);
+      Alert.alert('Feil', error.message || 'Import feilet');
+    }
+  };
 
   const pickImage = async (setImageFunc: (uri: string) => void) => {
     if (Platform.OS === 'web') {
@@ -1782,7 +2144,27 @@ export default function BackofficeScreen() {
                   try {
                     setImportStatus('parsing');
                     setImportError('');
-                    Alert.alert('Info', 'Leser fil...');
+
+                    console.log('[parseFile] Reading file:', importFile.name);
+                    
+                    let rows: any[];
+                    
+                    if (importFile.name.endsWith('.xlsx') || importFile.name.endsWith('.xls')) {
+                      rows = await parseExcel(importFile.uri);
+                    } else {
+                      const response = await fetch(importFile.uri);
+                      const text = await response.text();
+                      console.log('[parseFile] File content length:', text.length);
+                      rows = parseCSV(text);
+                    }
+                    
+                    setParsedImportData(rows);
+                    setImportStatus('success');
+                    
+                    Alert.alert('Suksess', `${rows.length} rader funnet. Vil du importere dataene?`, [
+                      { text: 'Avbryt', style: 'cancel' },
+                      { text: 'Importer', onPress: () => importDataFromFile() }
+                    ]);
                   } catch (error: any) {
                     console.error('[parseFile] Error:', error);
                     setImportStatus('error');
@@ -1792,6 +2174,21 @@ export default function BackofficeScreen() {
               >
                 <Text style={styles.confirmButtonText}>Les og importer fil</Text>
               </TouchableOpacity>
+            )}
+
+            {importStatus === 'success' && parsedImportData.length > 0 && (
+              <>
+                <View style={styles.previewSection}>
+                  <View style={styles.previewHeader}>
+                    <CheckCircle2 size={32} color="#10B981" />
+                    <Text style={styles.previewTitle}>{parsedImportData.length} rader funnet</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity style={styles.confirmButton} onPress={importDataFromFile}>
+                  <Text style={styles.confirmButtonText}>Importer data</Text>
+                </TouchableOpacity>
+              </>
             )}
 
             {importStatus === 'error' && importError && (
