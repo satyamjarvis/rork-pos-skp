@@ -228,7 +228,6 @@ export default function ImportScreen() {
     try {
       console.log('[importData] ========== STARTER IMPORT ==========');
       console.log('[importData] Total rader:', parsedData.length);
-      console.log('[importData] Alle rader:', parsedData);
       
       const categoryMap = new Map<string, string>();
       const subcategoryMap = new Map<string, string>();
@@ -236,195 +235,143 @@ export default function ImportScreen() {
       const productAddonMap = new Map<string, Set<string>>();
       
       let categoriesCreated = 0;
-      let categoriesUpdated = 0;
       let productsCreated = 0;
-      let productsUpdated = 0;
       let addonsCreated = 0;
-      let addonsUpdated = 0;
       let variantsCreated = 0;
-      let variantsUpdated = 0;
 
-      console.log('\n[importData] ===== FASE 1: KATEGORIER =====');
-      for (let i = 0; i < parsedData.length; i++) {
-        const row = parsedData[i];
-        console.log(`[importData] Rad ${i + 1}/${parsedData.length}:`, row);
-        
-        if (row.category) {
-          let categoryId: string | undefined;
-          
-          if (!categoryMap.has(row.category)) {
-            const existingByName = categories.find(c => c.name.toLowerCase() === row.category.toLowerCase() && !c.parentId);
-            
-            if (existingByName) {
-              console.log('[importData] ✓ Bruker eksisterende kategori:', existingByName.name);
-              categoryId = existingByName.id;
-              categoryMap.set(row.category, categoryId);
-            } else {
-              console.log('[importData] + Oppretter ny kategori:', row.category);
-              const newCategory = await addCategory(row.category);
-              if (newCategory) {
-                categoryId = newCategory.id;
-                categoryMap.set(row.category, categoryId);
-                categoriesCreated++;
-                console.log('[importData] ✅ Kategori opprettet:', newCategory.name, 'ID:', newCategory.id);
-              }
-            }
-          } else if (categoryId) {
-            categoryMap.set(row.category, categoryId);
+      console.log('\n[importData] ===== FASE 1: FINN UNIKE KATEGORIER =====');
+      const uniqueCategories = new Set<string>();
+      const uniqueSubcategories = new Map<string, string>();
+      
+      parsedData.forEach(row => {
+        if (row.category) uniqueCategories.add(row.category);
+        if (row.category && row.subcategory) {
+          uniqueSubcategories.set(`${row.category}:${row.subcategory}`, row.category);
+        }
+      });
+      
+      console.log('[importData] Fant', uniqueCategories.size, 'unike kategorier og', uniqueSubcategories.size, 'underkategorier');
+
+      for (const catName of uniqueCategories) {
+        const existing = categories.find(c => c.name.toLowerCase() === catName.toLowerCase() && !c.parentId);
+        if (existing) {
+          categoryMap.set(catName, existing.id);
+        } else {
+          const newCategory = await addCategory(catName);
+          if (newCategory) {
+            categoryMap.set(catName, newCategory.id);
+            categoriesCreated++;
           }
         }
+      }
+      
+      for (const [key, parentName] of uniqueSubcategories.entries()) {
+        const subcatName = key.split(':')[1];
+        const parentId = categoryMap.get(parentName);
         
-        if (row.category && row.subcategory) {
-          const subcategoryKey = `${row.category}:${row.subcategory}`;
-          let subcategoryId: string | undefined;
+        if (parentId) {
+          const existing = categories.find(c => 
+            c.name.toLowerCase() === subcatName.toLowerCase() && 
+            c.parentId === parentId
+          );
           
-          if (!subcategoryMap.has(subcategoryKey)) {
-            const parentCategoryId = categoryMap.get(row.category);
-            const existingByName = categories.find(c => 
-              c.name.toLowerCase() === row.subcategory.toLowerCase() && 
-              c.parentId === parentCategoryId
-            );
-            
-            if (existingByName) {
-              console.log('[importData] ✓ Bruker eksisterende underkategori:', existingByName.name);
-              subcategoryId = existingByName.id;
-              subcategoryMap.set(subcategoryKey, subcategoryId);
-            } else if (parentCategoryId) {
-              console.log('[importData] + Oppretter ny underkategori:', row.subcategory, 'under', row.category);
-              const newSubcategory = await addCategory(row.subcategory, undefined, parentCategoryId);
-              if (newSubcategory) {
-                subcategoryId = newSubcategory.id;
-                subcategoryMap.set(subcategoryKey, subcategoryId);
-                categoriesCreated++;
-                console.log('[importData] ✅ Underkategori opprettet:', newSubcategory.name, 'ID:', newSubcategory.id);
-              }
+          if (existing) {
+            subcategoryMap.set(key, existing.id);
+          } else {
+            const newSubcategory = await addCategory(subcatName, undefined, parentId);
+            if (newSubcategory) {
+              subcategoryMap.set(key, newSubcategory.id);
+              categoriesCreated++;
             }
-          } else if (subcategoryId) {
-            subcategoryMap.set(subcategoryKey, subcategoryId);
           }
         }
       }
 
-      console.log('\n[importData] ===== FASE 2: TILLEGGSVARER OG VARIANTER =====');
+      console.log('\n[importData] ===== FASE 2: FINN UNIKE TILLEGGSVARER OG VARIANTER =====');
+      const uniqueAddons = new Set<string>();
+      const variantsByAddon = new Map<string, {name: string, price: number, color?: string}[]>();
       
-      const variantTracker = new Map<string, Set<string>>();
-      
-      for (let i = 0; i < parsedData.length; i++) {
-        const row = parsedData[i];
-        console.log(`[importData] Rad ${i + 1}/${parsedData.length}: Sjekker tilleggsvarer og varianter...`);
-        console.log(`[importData] Rad data:`, { addons: row.addons, variantName: row.variantName, variantPrice: row.variantPrice, color: row.color });
-        
+      parsedData.forEach(row => {
         if (row.addons || row.variantName) {
           const addonName = row.addons || 'Standard Tillegg';
-          console.log(`[importData] Rad ${i + 1} har tilleggsvare/variant:`, { addon: addonName, variant: row.variantName, price: row.variantPrice });
+          uniqueAddons.add(addonName);
           
-          let addonId = addonMap.get(addonName);
-          
-          if (!addonId) {
-            const existingByName = tilleggsvarer.find(t => t.name.toLowerCase() === addonName.toLowerCase());
-            
-            if (existingByName) {
-              console.log('[importData] ✓ Bruker eksisterende tilleggsvare:', existingByName.name);
-              addonId = existingByName.id;
-              addonMap.set(addonName, addonId);
-            } else {
-              console.log('[importData] + Oppretter ny tilleggsvare:', addonName);
-              const newAddon = await addTilleggsvare(addonName);
-              if (newAddon) {
-                addonId = newAddon.id;
-                addonMap.set(addonName, addonId);
-                addonsCreated++;
-                console.log('[importData] ✅ Tilleggsvare opprettet:', newAddon.name, 'ID:', newAddon.id);
-              }
-            }
-          }
-          
-          if (addonId && row.variantName && row.variantPrice) {
+          if (row.variantName && row.variantPrice) {
             const price = parseFloat(row.variantPrice);
             if (!isNaN(price)) {
-              const color = row.color || undefined;
-              
-              const variantKey = `${addonId}:${row.variantName.toLowerCase()}:${price}`;
-              console.log('[importData] Variant nøkkel:', variantKey);
-              
-              if (!variantTracker.has(addonId)) {
-                variantTracker.set(addonId, new Set());
-                console.log('[importData] Opprettet ny tracker for tilleggsvare:', addonId);
+              if (!variantsByAddon.has(addonName)) {
+                variantsByAddon.set(addonName, []);
               }
               
-              const existingVariants = variantTracker.get(addonId)!;
-              console.log('[importData] Eksisterende varianter for denne tilleggsvaren:', Array.from(existingVariants));
+              const variants = variantsByAddon.get(addonName)!;
+              const exists = variants.some(v => 
+                v.name.toLowerCase() === row.variantName.toLowerCase() && v.price === price
+              );
               
-              if (!existingVariants.has(variantKey)) {
-                console.log('[importData] + Legger til variant:', row.variantName, 'pris:', price, 'farge:', color, 'til tilleggsvare ID:', addonId);
-                const newVariant = await addVariant(addonId, row.variantName, price, color);
-                if (newVariant) {
-                  variantsCreated++;
-                  existingVariants.add(variantKey);
-                  console.log('[importData] ✅ Variant lagt til med ID:', newVariant.id);
-                } else {
-                  console.error('[importData] ❌ Feilet å legge til variant:', row.variantName);
-                }
-              } else {
-                console.log('[importData] ⏭️ Variant allerede importert (duplikat):', row.variantName, 'med pris:', price);
+              if (!exists) {
+                variants.push({
+                  name: row.variantName,
+                  price,
+                  color: row.color || undefined,
+                });
               }
-            } else {
-              console.error('[importData] ⚠️ Ugyldig variantpris:', row.variantPrice, 'for', row.variantName);
-            }
-          } else {
-            console.log('[importData] ⚠️ Kan ikke opprette variant:', { 
-              addonId: !!addonId, 
-              variantName: !!row.variantName, 
-              variantPrice: !!row.variantPrice 
-            });
-            if (row.variantName && !row.variantPrice) {
-              console.error('[importData] ⚠️ Variant', row.variantName, 'mangler pris - hopper over');
             }
           }
-          
-          if (row.productName && addonId && row.addons) {
-            const productKey = row.productName;
-            if (!productAddonMap.has(productKey)) {
-              productAddonMap.set(productKey, new Set<string>());
-            }
-            productAddonMap.get(productKey)!.add(addonId);
-            console.log('[importData] 🔗 Merket tilleggsvare', addonName, 'for kobling til produkt', row.productName);
-          }
+        }
+      });
+      
+      console.log('[importData] Fant', uniqueAddons.size, 'unike tilleggsvarer');
+      
+      for (const addonName of uniqueAddons) {
+        const existing = tilleggsvarer.find(t => t.name.toLowerCase() === addonName.toLowerCase());
+        
+        if (existing) {
+          addonMap.set(addonName, existing.id);
         } else {
-          console.log(`[importData] Rad ${i + 1}: Ingen tilleggsvare eller variant data`);
+          const newAddon = await addTilleggsvare(addonName);
+          if (newAddon) {
+            addonMap.set(addonName, newAddon.id);
+            addonsCreated++;
+          }
+        }
+        
+        const addonId = addonMap.get(addonName);
+        if (addonId) {
+          const variants = variantsByAddon.get(addonName) || [];
+          for (const variant of variants) {
+            const newVariant = await addVariant(addonId, variant.name, variant.price, variant.color);
+            if (newVariant) variantsCreated++;
+          }
         }
       }
+      
+      parsedData.forEach(row => {
+        if (row.productName && row.addons) {
+          const addonId = addonMap.get(row.addons);
+          if (addonId) {
+            if (!productAddonMap.has(row.productName)) {
+              productAddonMap.set(row.productName, new Set<string>());
+            }
+            productAddonMap.get(row.productName)!.add(addonId);
+          }
+        }
+      });
 
       console.log('\n[importData] ===== FASE 3: GRUPPERER PRODUKTER =====');
-      console.log('[importData] Total rader å behandle:', parsedData.length);
-      
       const productGroups = new Map<string, ParsedRow[]>();
       
-      for (let i = 0; i < parsedData.length; i++) {
-        const row = parsedData[i];
-        
+      parsedData.forEach(row => {
         if (row.productName) {
-          const productKey = row.productName.toLowerCase().trim();
-          
-          if (!productGroups.has(productKey)) {
-            productGroups.set(productKey, []);
-          }
-          
-          productGroups.get(productKey)!.push(row);
-          console.log(`[importData] Rad ${i + 1}: Produkt '${row.productName}' lagt til gruppe '${productKey}'`);
-        } else {
-          console.log(`[importData] Rad ${i + 1}: Ingen produktnavn - hopper over`);
+          const key = row.productName.toLowerCase().trim();
+          if (!productGroups.has(key)) productGroups.set(key, []);
+          productGroups.get(key)!.push(row);
         }
-      }
+      });
 
-      console.log('[importData] ⭐ Fant', productGroups.size, 'unike produkter fra', parsedData.length, 'rader');
+      console.log('[importData] ⭐ Fant', productGroups.size, 'unike produkter');
 
-      let productIndex = 0;
-      for (const [productKey, rows] of productGroups.entries()) {
-        productIndex++;
+      for (const [, rows] of productGroups.entries()) {
         const productName = rows[0].productName;
-        
-        console.log(`\n[importData] ===== PRODUKT ${productIndex}/${productGroups.size}: ${productName} (${rows.length} rader) =====`);
         
         const allSizes = rows
           .filter(row => row.sizeName && row.sizePrice)
@@ -436,45 +383,23 @@ export default function ImportScreen() {
           .filter(size => !isNaN(size.price));
         
         const hasSizes = allSizes.length > 0;
-        
         const categoryId = rows[0].subcategory ? 
           subcategoryMap.get(`${rows[0].category}:${rows[0].subcategory}`) : 
           categoryMap.get(rows[0].category);
-        
         const image = rows.find(r => r.image)?.image || '';
         
-        console.log('[importData] Kategori ID:', categoryId);
-        console.log('[importData] Kategori navn:', rows[0].category, rows[0].subcategory ? `> ${rows[0].subcategory}` : '');
-        console.log('[importData] Har størrelser:', hasSizes, '(', allSizes.length, 'størrelser)');
-        
         if (hasSizes) {
-          console.log('[importData] Størrelser:', allSizes.map(s => `${s.name}: ${s.price}kr`).join(', '));
-
           const product = await addProduct(productName, 0);
           if (product) {
-            const updates: any = {
-              categoryId,
-              sizes: allSizes,
-              hasSize: true,
-            };
-            
-            if (image) {
-              updates.image = image;
-            }
+            const updates: any = { categoryId, sizes: allSizes, hasSize: true };
+            if (image) updates.image = image;
             
             const addonSet = productAddonMap.get(productName);
             if (addonSet && addonSet.size > 0) {
               updates.tilleggsvareIds = Array.from(addonSet);
-              console.log('[importData] 🔗 Kobler', updates.tilleggsvareIds.length, 'tilleggsvarer til produkt:', productName);
             }
             
-            const updateSuccess = await updateProduct(product.id, updates);
-            if (updateSuccess) {
-              productsCreated++;
-              console.log('[importData] ✅ Produkt med', allSizes.length, 'størrelser opprettet:', productName, 'ID:', product.id);
-            } else {
-              console.error('[importData] ❌ Feilet å oppdatere produkt:', productName);
-            }
+            if (await updateProduct(product.id, updates)) productsCreated++;
           }
         } else {
           const priceRow = rows.find(r => r.price);
@@ -483,50 +408,28 @@ export default function ImportScreen() {
             if (!isNaN(price)) {
               const product = await addProduct(productName, price);
               if (product) {
-                const updates: any = {
-                  categoryId,
-                };
-                
-                if (image) {
-                  updates.image = image;
-                }
+                const updates: any = { categoryId };
+                if (image) updates.image = image;
                 
                 const addonSet = productAddonMap.get(productName);
                 if (addonSet && addonSet.size > 0) {
                   updates.tilleggsvareIds = Array.from(addonSet);
-                  console.log('[importData] 🔗 Kobler', updates.tilleggsvareIds.length, 'tilleggsvarer til produkt:', productName);
                 }
                 
-                const updateSuccess = await updateProduct(product.id, updates);
-                if (updateSuccess) {
-                  productsCreated++;
-                  console.log('[importData] ✅ Produkt opprettet:', productName, 'ID:', product.id, 'Pris:', price);
-                } else {
-                  console.error('[importData] ❌ Feilet å oppdatere produkt:', productName);
-                }
+                if (await updateProduct(product.id, updates)) productsCreated++;
               }
-            } else {
-              console.log('[importData] ⚠️ Ugyldig pris for produkt:', productName, '- hopper over');
             }
-          } else {
-            console.log('[importData] ⚠️ Produkt mangler pris eller størrelser:', productName, '- hopper over');
           }
         }
       }
 
       console.log('\n[importData] ===== OPPSUMMERING =====');
-      console.log('[importData] Kategorier opprettet:', categoriesCreated);
-      console.log('[importData] Kategorier oppdatert:', categoriesUpdated);
-      console.log('[importData] Produkter opprettet:', productsCreated);
-      console.log('[importData] Produkter oppdatert:', productsUpdated);
-      console.log('[importData] Tilleggsvarer opprettet:', addonsCreated);
-      console.log('[importData] Tilleggsvarer oppdatert:', addonsUpdated);
-      console.log('[importData] Varianter opprettet:', variantsCreated);
-      console.log('[importData] Varianter oppdatert:', variantsUpdated);
+      console.log('[importData] Kategorier:', categoriesCreated);
+      console.log('[importData] Produkter:', productsCreated);
+      console.log('[importData] Tilleggsvarer:', addonsCreated);
+      console.log('[importData] Varianter:', variantsCreated);
 
-      console.log('\n[importData] 🔄 Laster inn data på nytt fra database...');
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('\n[importData] 🔄 Laster data...');
       
       await Promise.all([
         loadProducts(),
@@ -534,7 +437,7 @@ export default function ImportScreen() {
         loadTilleggsvarer()
       ]);
       
-      console.log('[importData] ✅ Data lastet inn på nytt!');
+      console.log('[importData] ✅ Ferdig!');
 
       setImportResult({
         categories: categoriesCreated,
@@ -544,13 +447,12 @@ export default function ImportScreen() {
 
       Alert.alert(
         'Import fullført!',
-        `✅ Kategorier: ${categoriesCreated} opprettet\n✅ Produkter: ${productsCreated} opprettet, ${productsUpdated} oppdatert\n✅ Tilleggsvarer: ${addonsCreated} opprettet\n✅ Varianter: ${variantsCreated} opprettet`,
+        `✅ Kategorier: ${categoriesCreated}\n✅ Produkter: ${productsCreated}\n✅ Tilleggsvarer: ${addonsCreated}\n✅ Varianter: ${variantsCreated}`,
         [{ text: 'OK' }]
       );
 
     } catch (error: any) {
       console.error('[importData] ❌ ERROR:', error);
-      console.error('[importData] Error stack:', error.stack);
       Alert.alert('Feil', error.message || 'Import feilet');
     }
   };
