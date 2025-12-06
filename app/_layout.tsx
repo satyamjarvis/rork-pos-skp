@@ -1,14 +1,13 @@
+import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { PrinterProvider } from "@/contexts/PrinterContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { BusinessSettingsProvider } from "@/contexts/BusinessSettingsContext";
 import { ProductsProvider } from "@/contexts/ProductsContext";
 import { OrdersProvider } from "@/contexts/OrdersContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { PrinterProvider } from "@/contexts/PrinterContext";
 import OfflineNotice from "@/components/OfflineNotice";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
