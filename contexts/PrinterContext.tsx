@@ -67,15 +67,17 @@ export const [PrinterProvider, usePrinter] = createContextHook(() => {
     let mounted = true;
     
     const init = async () => {
+      let loadedPrinters: Printer[] = [];
+      let loadedLogs: PrintLog[] = [];
+      
       try {
         const stored = await AsyncStorage.getItem(PRINTER_STORAGE_KEY);
-        if (mounted && stored && stored !== 'null' && stored !== 'undefined') {
+        if (stored && stored !== 'null' && stored !== 'undefined') {
           try {
-            setPrinters(JSON.parse(stored));
+            loadedPrinters = JSON.parse(stored);
           } catch (parseError) {
             console.error('Failed to parse printers JSON:', parseError);
             console.error('Invalid JSON string:', stored);
-            setPrinters([]);
           }
         }
       } catch (error) {
@@ -84,13 +86,12 @@ export const [PrinterProvider, usePrinter] = createContextHook(() => {
       
       try {
         const storedLogs = await AsyncStorage.getItem(PRINT_LOG_STORAGE_KEY);
-        if (mounted && storedLogs && storedLogs !== 'null' && storedLogs !== 'undefined') {
+        if (storedLogs && storedLogs !== 'null' && storedLogs !== 'undefined') {
           try {
-            setPrintLogs(JSON.parse(storedLogs));
+            loadedLogs = JSON.parse(storedLogs);
           } catch (parseError) {
             console.error('Failed to parse print logs JSON:', parseError);
             console.error('Invalid JSON string:', storedLogs);
-            setPrintLogs([]);
           }
         }
       } catch (error) {
@@ -98,6 +99,8 @@ export const [PrinterProvider, usePrinter] = createContextHook(() => {
       }
       
       if (mounted) {
+        setPrinters(loadedPrinters);
+        setPrintLogs(loadedLogs);
         setIsLoading(false);
       }
     };
