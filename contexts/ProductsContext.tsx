@@ -288,6 +288,84 @@ const [ProductsProviderComponent, useProducts] = createContextHook(() => {
       loadProducts();
       loadCategories();
       loadTilleggsvarer();
+
+      console.log('[ProductsContext] Setting up realtime subscriptions');
+      
+      const productsChannel = supabase
+        .channel(`products-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'products',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('[ProductsContext] Products change detected:', payload.eventType);
+            loadProducts();
+          }
+        )
+        .subscribe();
+
+      const categoriesChannel = supabase
+        .channel(`categories-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'categories',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('[ProductsContext] Categories change detected:', payload.eventType);
+            loadCategories();
+          }
+        )
+        .subscribe();
+
+      const addonsChannel = supabase
+        .channel(`addons-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'addon_categories',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('[ProductsContext] Addon categories change detected:', payload.eventType);
+            loadTilleggsvarer();
+          }
+        )
+        .subscribe();
+
+      const variantsChannel = supabase
+        .channel(`variants-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'addon_variants',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('[ProductsContext] Addon variants change detected:', payload.eventType);
+            loadTilleggsvarer();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('[ProductsContext] Unsubscribing from realtime');
+        supabase.removeChannel(productsChannel);
+        supabase.removeChannel(categoriesChannel);
+        supabase.removeChannel(addonsChannel);
+        supabase.removeChannel(variantsChannel);
+      };
     } else {
       setProducts([]);
       setCategories([]);
