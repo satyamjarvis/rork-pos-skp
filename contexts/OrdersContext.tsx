@@ -245,8 +245,22 @@ const [OrdersProviderComponent, useOrders] = createContextHook(() => {
       return sum + itemTotal;
     }, 0);
 
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const optimisticOrder: Order = {
+      id: tempId,
+      items: items,
+      timestamp: Date.now(),
+      date: new Date().toLocaleString('nb-NO'),
+      status: 'pending',
+      orderNumber: nextOrderNumber,
+      customerName: customerName || 'Walk-in Customer',
+    };
+
+    console.log('[OrdersContext] 🚀 Adding optimistic order:', optimisticOrder.orderNumber);
+    setOrders(prev => [optimisticOrder, ...prev]);
+
     try {
-      console.log('[OrdersContext] 📝 Adding order with', items.length, 'items');
+      console.log('[OrdersContext] 📝 Inserting order to database');
       console.log('[OrdersContext] User ID:', user.id);
       console.log('[OrdersContext] Total:', total);
       console.log('[OrdersContext] Timestamp:', new Date().toISOString());
@@ -260,7 +274,6 @@ const [OrdersProviderComponent, useOrders] = createContextHook(() => {
         vat_amount: 0,
         status: 'pending' as const,
       };
-      console.log('[OrdersContext] 📦 Order data to insert:', JSON.stringify(orderData, null, 2));
       
       const { data, error } = await supabase
         .from('orders')
@@ -271,17 +284,15 @@ const [OrdersProviderComponent, useOrders] = createContextHook(() => {
       if (error) {
         console.error('[OrdersContext] ❌ Failed to insert order:', error);
         console.error('[OrdersContext] Error details:', JSON.stringify(error, null, 2));
+        setOrders(prev => prev.filter(o => o.id !== tempId));
         throw error;
       }
 
       console.log('[OrdersContext] ✅ Order inserted successfully!');
       console.log('[OrdersContext] Order ID:', data.id);
       console.log('[OrdersContext] Order number:', data.order_number);
-      console.log('[OrdersContext] Status:', data.status);
-      console.log('[OrdersContext] 🎉 Waiting for realtime event...');
-      console.log('[OrdersContext] Timestamp:', new Date().toISOString());
       
-      const order: Order = {
+      const realOrder: Order = {
         id: data.id,
         items: data.items,
         timestamp: new Date(data.created_at).getTime(),
@@ -291,8 +302,17 @@ const [OrdersProviderComponent, useOrders] = createContextHook(() => {
         customerName: data.customer_name,
       };
 
+      setOrders(prev => {
+        const filtered = prev.filter(o => o.id !== tempId);
+        const exists = filtered.some(o => o.id === realOrder.id);
+        if (exists) {
+          return filtered;
+        }
+        return [realOrder, ...filtered];
+      });
+
       setNextOrderNumber(prev => prev + 1);
-      return order;
+      return realOrder;
     } catch (error) {
       console.error('[OrdersContext] ❌ Failed to add order:', error);
       return null;
