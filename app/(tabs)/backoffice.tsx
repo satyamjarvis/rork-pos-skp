@@ -23,6 +23,7 @@ import { usePrinter, type Printer as PrinterType, type PrinterType as PrinterTyp
 import { useAuth } from '@/contexts/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as XLSX from 'xlsx';
 
 
 
@@ -110,6 +111,11 @@ export default function BackofficeScreen() {
   const [testingPrinter, setTestingPrinter] = useState<string | null>(null);
   const [showDiscoveredPrinters, setShowDiscoveredPrinters] = useState(false);
   const [showScanDebug, setShowScanDebug] = useState(false);
+
+  const [importFile, setImportFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [parsedImportData, setParsedImportData] = useState<any[]>([]);
+  const [importStatus, setImportStatus] = useState<'idle' | 'parsing' | 'success' | 'error'>('idle');
+  const [importError, setImportError] = useState<string>('');
 
   const pickImage = async (setImageFunc: (uri: string) => void) => {
     if (Platform.OS === 'web') {
@@ -1700,14 +1706,97 @@ export default function BackofficeScreen() {
             <View style={styles.tabHeader}>
               <View>
                 <Text style={styles.tabTitle}>Importer</Text>
-                <Text style={styles.tabDescription}>Last opp Excel eller CSV fil</Text>
+                <Text style={styles.tabDescription}>Last opp Excel eller CSV fil for å importere produkter</Text>
               </View>
             </View>
-            <View style={styles.importPlaceholder}>
-              <Upload size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>Importering kommer snart</Text>
-              <Text style={styles.emptySubtext}>Denne funksjonen er under utvikling</Text>
+
+            <View style={styles.instructionsCard}>
+              <FileSpreadsheet size={48} color="#10B981" />
+              <Text style={styles.instructionsTitle}>Slik fungerer det</Text>
+              <Text style={styles.instructionsText}>
+                Filen må inneholde disse kolonnene i rekkefølge:
+              </Text>
+              <View style={styles.columnList}>
+                <Text style={styles.columnItem}>1. Produktnavn</Text>
+                <Text style={styles.columnItem}>2. Pris</Text>
+                <Text style={styles.columnItem}>3. Størrelse navn</Text>
+                <Text style={styles.columnItem}>4. Størrelse pris</Text>
+                <Text style={styles.columnItem}>5. Kategori</Text>
+                <Text style={styles.columnItem}>6. Underkategori</Text>
+                <Text style={styles.columnItem}>7. Tilleggsvarer</Text>
+                <Text style={styles.columnItem}>8. Varianter navn</Text>
+                <Text style={styles.columnItem}>9. Varianter pris</Text>
+                <Text style={styles.columnItem}>10. Farge</Text>
+                <Text style={styles.columnItem}>11. Bilde</Text>
+              </View>
             </View>
+
+            <View style={styles.exampleBox}>
+              <Text style={styles.exampleTitle}>Eksempel fil</Text>
+              <Text style={styles.exampleHeader}>Produktnavn|Pris|Størrelse navn|Størrelse pris|Kategori|Underkategori|Tilleggsvarer|Varianter navn|Varianter pris|Farge|Bilde</Text>
+              <Text style={styles.exampleText}>Pizza Margherita|120|||Pizza||||||</Text>
+              <Text style={styles.exampleText}>Vegetar||Liten|100|Pizza|Vegetar|||||</Text>
+              <Text style={styles.exampleText}>Vegetar||Medium|130|Pizza|Vegetar|||||</Text>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.filePickerButton} 
+              onPress={async () => {
+                try {
+                  const result = await DocumentPicker.getDocumentAsync({
+                    type: ['text/csv', 'text/plain', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+                    copyToCacheDirectory: true,
+                  });
+
+                  if (!result.canceled && result.assets[0]) {
+                    console.log('[pickFile] File selected:', result.assets[0].name);
+                    setImportFile(result.assets[0]);
+                    setParsedImportData([]);
+                    setImportStatus('idle');
+                    setImportError('');
+                  }
+                } catch (error) {
+                  console.error('[pickFile] Error:', error);
+                  Alert.alert('Feil', 'Kunne ikke velge fil');
+                }
+              }}
+            >
+              <Upload size={24} color="#10B981" />
+              <Text style={styles.fileInputText}>
+                {importFile ? importFile.name : 'Velg Excel eller CSV fil'}
+              </Text>
+            </TouchableOpacity>
+
+            {importFile && importStatus === 'idle' && (
+              <TouchableOpacity 
+                style={styles.confirmButton} 
+                onPress={async () => {
+                  if (!importFile) return;
+
+                  try {
+                    setImportStatus('parsing');
+                    setImportError('');
+                    Alert.alert('Info', 'Leser fil...');
+                  } catch (error: any) {
+                    console.error('[parseFile] Error:', error);
+                    setImportStatus('error');
+                    setImportError(error.message || 'Kunne ikke lese filen');
+                  }
+                }}
+              >
+                <Text style={styles.confirmButtonText}>Les og importer fil</Text>
+              </TouchableOpacity>
+            )}
+
+            {importStatus === 'error' && importError && (
+              <View style={styles.errorSection}>
+                <View style={styles.errorHeader}>
+                  <AlertCircle size={24} color="#EF4444" />
+                  <Text style={styles.errorTitle}>Feil ved lesing</Text>
+                </View>
+                <Text style={styles.errorText}>{importError}</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -5263,6 +5352,36 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 4,
     lineHeight: 16,
+  },
+  instructionsCard: {
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  instructionsTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#111827',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center' as const,
+    marginBottom: 12,
+  },
+  columnList: {
+    width: '100%',
+    gap: 6,
+    marginBottom: 12,
+  },
+  columnItem: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '500' as const,
   },
   profileSection: {
     marginTop: 16,
