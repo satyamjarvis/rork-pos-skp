@@ -9,6 +9,7 @@ import { BusinessSettingsProvider } from "@/contexts/BusinessSettingsContext";
 import { ProductsProvider } from "@/contexts/ProductsContext";
 import { OrdersProvider } from "@/contexts/OrdersContext";
 import { PrinterProvider } from "@/contexts/PrinterContext";
+import OfflineNotice from "@/components/OfflineNotice";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -48,6 +49,7 @@ export default function RootLayout() {
             <ProductsProvider>
               <OrdersProvider>
                 <PrinterProvider>
+                  <OfflineNotice />
                   <RootLayoutNav />
                 </PrinterProvider>
               </OrdersProvider>
