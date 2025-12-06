@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { StyleSheet } from "react-native";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BusinessSettingsProvider } from "@/contexts/BusinessSettingsContext";
 import { ProductsProvider } from "@/contexts/ProductsContext";
@@ -40,20 +41,26 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BusinessSettingsProvider>
-          <ProductsProvider>
-            <OrdersProvider>
-              <PrinterProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.container}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BusinessSettingsProvider>
+            <ProductsProvider>
+              <OrdersProvider>
+                <PrinterProvider>
                   <RootLayoutNav />
-                </GestureHandlerRootView>
-              </PrinterProvider>
-            </OrdersProvider>
-          </ProductsProvider>
-        </BusinessSettingsProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+                </PrinterProvider>
+              </OrdersProvider>
+            </ProductsProvider>
+          </BusinessSettingsProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
