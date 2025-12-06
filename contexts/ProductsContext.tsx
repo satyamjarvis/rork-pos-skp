@@ -544,6 +544,10 @@ const [ProductsProviderComponent, useProducts] = createContextHook(() => {
         price: Number(data.price),
       };
 
+      // ✅ OPTIMISTISK OPPDATERING: Legg til produkt lokalt med en gang
+      console.log('[addProduct] ✅ Adding product to local state immediately');
+      setProducts(prev => [...prev, newProduct]);
+
       console.log('[addProduct] Success!');
       return newProduct;
     } catch (error) {
@@ -599,6 +603,24 @@ const [ProductsProviderComponent, useProducts] = createContextHook(() => {
 
   const updateProduct = useCallback(async (productId: string, updates: Partial<Product>) => {
     if (!user) return false;
+    
+    // ✅ OPTIMISTISK OPPDATERING: Oppdater lokalt først
+    console.log('[updateProduct] ✅ Updating product locally first');
+    setProducts(prev => prev.map(p => {
+      if (p.id === productId) {
+        return {
+          ...p,
+          name: updates.name ?? p.name,
+          price: updates.price ?? p.price,
+          image: updates.image !== undefined ? updates.image : p.image,
+          categoryId: updates.categoryId ?? p.categoryId,
+          sizes: updates.sizes ?? p.sizes,
+          hasSize: updates.hasSize ?? p.hasSize,
+          tilleggsvareIds: updates.tilleggsvareIds ?? p.tilleggsvareIds,
+        };
+      }
+      return p;
+    }));
     
     try {
       console.log('[updateProduct] Updating product:', productId, updates);
@@ -715,29 +737,15 @@ const [ProductsProviderComponent, useProducts] = createContextHook(() => {
         }
       }
 
-      // Update local state directly instead of reloading everything
-      setProducts(prev => {
-        console.log('[updateProduct] Updating local state for product:', productId);
-        console.log('[updateProduct] New image URL:', imageUrlForLocalState);
-        
-        return prev.map(p => {
+      // Update local state again with the correct image URL from storage
+      if (imageUrlForLocalState !== updates.image) {
+        setProducts(prev => prev.map(p => {
           if (p.id === productId) {
-            const updated = {
-              ...p,
-              name: updates.name ?? p.name,
-              price: updates.price ?? p.price,
-              image: imageUrlForLocalState !== undefined ? imageUrlForLocalState : p.image,
-              categoryId: updates.categoryId ?? p.categoryId,
-              sizes: updates.sizes ?? p.sizes,
-              hasSize: updates.hasSize ?? p.hasSize,
-              tilleggsvareIds: updates.tilleggsvareIds ?? p.tilleggsvareIds,
-            };
-            console.log('[updateProduct] Updated product data:', updated);
-            return updated;
+            return { ...p, image: imageUrlForLocalState };
           }
           return p;
-        });
-      });
+        }));
+      }
       
       console.log('[updateProduct] Success!');
       return true;
@@ -802,9 +810,9 @@ const [ProductsProviderComponent, useProducts] = createContextHook(() => {
         order: data.category_order ?? categories.length,
       };
 
-      // Update local state immediately
+      // ✅ OPTIMISTISK OPPDATERING: Legg til kategori lokalt med en gang
+      console.log('[addCategory] ✅ Adding category to local state immediately');
       setCategories(prev => [...prev, newCategory]);
-      console.log('[addCategory] Local state updated with new category');
 
       return newCategory;
     } catch (error) {
@@ -815,6 +823,21 @@ const [ProductsProviderComponent, useProducts] = createContextHook(() => {
 
   const updateCategory = useCallback(async (categoryId: string, updates: Partial<Category>) => {
     if (!user) return false;
+    
+    // ✅ OPTIMISTISK OPPDATERING: Oppdater lokalt først
+    console.log('[updateCategory] ✅ Updating category locally first');
+    setCategories(prev => prev.map(c => {
+      if (c.id === categoryId) {
+        return {
+          ...c,
+          name: updates.name ?? c.name,
+          image: updates.image !== undefined ? updates.image : c.image,
+          parentId: updates.parentId !== undefined ? updates.parentId : c.parentId,
+          order: updates.order ?? c.order,
+        };
+      }
+      return c;
+    }));
     
     try {
       console.log('[updateCategory] Updating category:', categoryId, updates);
@@ -893,26 +916,15 @@ const [ProductsProviderComponent, useProducts] = createContextHook(() => {
 
       console.log('[updateCategory] Category updated in database:', updatedData);
 
-      // Update local state directly instead of reloading everything
-      setCategories(prev => {
-        console.log('[updateCategory] Updating local state for category:', categoryId);
-        console.log('[updateCategory] New image URL:', imageUrlForLocalState);
-        
-        return prev.map(c => {
+      // Update local state again with the correct image URL from storage if needed
+      if (imageUrlForLocalState !== updates.image) {
+        setCategories(prev => prev.map(c => {
           if (c.id === categoryId) {
-            const updated = {
-              ...c,
-              name: updates.name ?? c.name,
-              image: imageUrlForLocalState !== undefined ? imageUrlForLocalState : c.image,
-              parentId: updates.parentId !== undefined ? updates.parentId : c.parentId,
-              order: updates.order ?? c.order,
-            };
-            console.log('[updateCategory] Updated category data:', updated);
-            return updated;
+            return { ...c, image: imageUrlForLocalState };
           }
           return c;
-        });
-      });
+        }));
+      }
       
       console.log('[updateCategory] Success!');
       return true;
