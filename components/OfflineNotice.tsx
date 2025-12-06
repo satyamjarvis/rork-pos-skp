@@ -10,7 +10,7 @@ import {
 import { WifiOff, RefreshCw } from 'lucide-react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
-function OfflineNotice() {
+export default function OfflineNotice() {
   const [isOffline, setIsOffline] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
@@ -211,4 +211,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default OfflineNotice;
+
