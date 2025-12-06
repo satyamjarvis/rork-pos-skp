@@ -1,7 +1,7 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { Platform } from 'react-native';
 
 import type { Order } from './OrdersContext';
 import NetInfo from '@react-native-community/netinfo';
@@ -830,12 +830,16 @@ export const [PrinterProvider, usePrinter] = createContextHook(() => {
       
       let currentNetwork = 'Ukjent';
       try {
-        const state = await NetInfo.fetch();
-        if (state.type === 'wifi' && state.details?.ipAddress) {
-          currentNetwork = state.details.ipAddress;
-          addLog(`[PrinterScan] ✅ WiFi connected: ${currentNetwork}`);
+        if (Platform.OS !== 'web') {
+          const state = await NetInfo.fetch();
+          if (state.type === 'wifi' && state.details?.ipAddress) {
+            currentNetwork = state.details.ipAddress;
+            addLog(`[PrinterScan] ✅ WiFi connected: ${currentNetwork}`);
+          } else {
+            addLog('[PrinterScan] ⚠️ Not connected to WiFi. Connect to same WiFi as printer.');
+          }
         } else {
-          addLog('[PrinterScan] ⚠️ Not connected to WiFi. Connect to same WiFi as printer.');
+          addLog('[PrinterScan] ⚠️ Network detection not available on web. Scanning default subnets.');
         }
       } catch {
         addLog('[PrinterScan] Could not get network info');
