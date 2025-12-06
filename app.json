@@ -28,18 +28,8 @@
         ]
       },
       "entitlements": {
-        "com.apple.developer.networking.wifi-info": true,
-        "com": {
-          "apple": {
-            "developer": {
-              "networking": {
-                "wifi-info": true
-              }
-            }
-          }
-        }
-      },
-      "usesIcloudStorage": true
+        "com.apple.developer.networking.wifi-info": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -72,9 +62,7 @@
       ],
       [
         "expo-document-picker",
-        {
-          "iCloudContainerEnvironment": "Production"
-        }
+        {}
       ]
     ],
     "experiments": {
