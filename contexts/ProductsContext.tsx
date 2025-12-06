@@ -53,6 +53,7 @@ export const [ProductsProvider, useProducts] = createContextHook(() => {
   // Permanent image URL cache - lasts entire session + stored in memory
   const imageUrlCacheRef = useRef<Map<string, string>>(new Map());
   const imagePrefetchInProgressRef = useRef<Set<string>>(new Set());
+  const loadingPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
 
   // Helper to get signed URL from image path - instant from cache or generate once
   const getSignedUrl = useCallback(async (imagePath: string): Promise<string | null> => {
@@ -109,6 +110,13 @@ export const [ProductsProvider, useProducts] = createContextHook(() => {
       return;
     }
     
+    const existingPromise = loadingPromisesRef.current.get('products');
+    if (existingPromise) {
+      console.log('[loadProducts] Already loading, returning existing promise');
+      return existingPromise;
+    }
+    
+    const loadPromise = (async () => {
     try {
       console.log('[loadProducts] Starting to load products for user:', user.id);
       setIsLoading(true);
@@ -188,7 +196,12 @@ export const [ProductsProvider, useProducts] = createContextHook(() => {
     } finally {
       setIsLoading(false);
       console.log('[loadProducts] Loading finished, isLoading set to false');
+      loadingPromisesRef.current.delete('products');
     }
+    })();
+    
+    loadingPromisesRef.current.set('products', loadPromise);
+    return loadPromise;
   }, [user, getSignedUrl]);
 
   const loadCategories = useCallback(async () => {

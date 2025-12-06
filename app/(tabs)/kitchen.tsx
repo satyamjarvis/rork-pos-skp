@@ -18,7 +18,7 @@ import { useNavigation, Stack } from 'expo-router';
 
 type OrderSizeView = 'small' | 'medium' | 'large';
 
-export default function KitchenScreen() {
+const KitchenScreen = React.memo(() => {
   const { orders, updateOrderStatus, deleteOrder } = useOrders();
   const { tilleggsvarer } = useProducts();
   const { printKitchenReceipt, printToWebPRNT, printers } = usePrinter();
@@ -45,8 +45,12 @@ export default function KitchenScreen() {
     });
   }, [isFullscreen, navigation]);
 
+  const activeOrders = React.useMemo(() => 
+    orders.filter(o => o.status !== 'completed'),
+    [orders]
+  );
+
   useEffect(() => {
-    const activeOrders = orders.filter(o => o.status !== 'completed');
     const newOrders = activeOrders.filter(order => 
       !printedOrdersRef.current.has(order.id) && order.status === 'pending'
     );
@@ -114,7 +118,7 @@ export default function KitchenScreen() {
     }
   };
 
-  const activeOrders = orders.filter(o => o.status !== 'completed');
+
 
   const handleStatusChange = async (orderId: string, newStatus: 'pending' | 'in_progress' | 'completed') => {
     Animated.sequence([
@@ -203,7 +207,7 @@ export default function KitchenScreen() {
     }));
   };
 
-  const renderOrder = (order: Order) => {
+  const renderOrder = React.useCallback((order: Order) => {
     const cardPadding = orderSizeView === 'small' ? 16 : orderSizeView === 'large' ? 24 : 20;
     const cardWidth = orderSizeView === 'small' ? '31%' : orderSizeView === 'medium' ? '48%' : '100%';
     
@@ -401,7 +405,7 @@ export default function KitchenScreen() {
         )}
       </View>
     );
-  };
+  }, [orderSizeView, completedItems, handleDeleteOrder, toggleItemComplete, tilleggsvarer, handlePrintOrder, handleStatusChange]);
 
 
 
@@ -500,7 +504,9 @@ export default function KitchenScreen() {
       </View>
     </>
   );
-}
+});
+
+export default KitchenScreen;
 
 const styles = StyleSheet.create({
   container: {

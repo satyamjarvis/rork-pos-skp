@@ -102,11 +102,6 @@ export const [OrdersProvider, useOrders] = createContextHook(() => {
       console.log('[OrdersContext] 🔄 Setting up realtime subscription for user:', user.id);
       console.log('[OrdersContext] 🔄 Timestamp:', new Date().toISOString());
       
-      const pollInterval = setInterval(() => {
-        console.log('[OrdersContext] 🔄 Polling for new orders...');
-        loadOrders();
-      }, 2000);
-      
       const channelName = `orders-changes-${user.id}`;
       const channel = supabase
         .channel(channelName, {
@@ -225,7 +220,6 @@ export const [OrdersProvider, useOrders] = createContextHook(() => {
       return () => {
         console.log('[OrdersContext] 🔌 Unsubscribing from realtime');
         console.log('[OrdersContext] Timestamp:', new Date().toISOString());
-        clearInterval(pollInterval);
         supabase.removeChannel(channel);
       };
     } else {
