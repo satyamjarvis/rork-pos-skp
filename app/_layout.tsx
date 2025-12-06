@@ -2,8 +2,7 @@ import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BusinessSettingsProvider } from "@/contexts/BusinessSettingsContext";
 import { ProductsProvider } from "@/contexts/ProductsContext";
@@ -42,7 +41,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <View style={styles.container}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <BusinessSettingsProvider>
@@ -57,7 +56,7 @@ export default function RootLayout() {
           </BusinessSettingsProvider>
         </AuthProvider>
       </QueryClientProvider>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 
