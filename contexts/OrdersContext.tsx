@@ -227,7 +227,8 @@ export const [OrdersProvider, useOrders] = createContextHook(() => {
       setNextOrderNumber(1);
       setIsLoading(false);
     }
-  }, [user, loadOrders, loadOrderNumber]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const addOrder = useCallback(async (items: OrderItem[], customerName?: string) => {
     if (!user) {

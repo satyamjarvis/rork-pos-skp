@@ -294,7 +294,8 @@ export const [ProductsProvider, useProducts] = createContextHook(() => {
       setTilleggsvarer([]);
       setIsLoading(false);
     }
-  }, [user, loadProducts, loadCategories, loadTilleggsvarer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const uploadImage = useCallback(async (imageUri: string): Promise<string | null> => {
     if (!user) return null;

@@ -140,7 +140,8 @@ export const [BusinessSettingsProvider, useBusinessSettings] = createContextHook
       setSettings(DEFAULT_SETTINGS);
       setIsLoading(false);
     }
-  }, [user, loadSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const updateSettings = useCallback(async (newSettings: BusinessSettings) => {
     if (!user) return false;
