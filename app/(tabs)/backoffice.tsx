@@ -1729,6 +1729,12 @@ export default function BackofficeScreen() {
                 <Text style={styles.columnItem}>10. Farge</Text>
                 <Text style={styles.columnItem}>11. Bilde</Text>
               </View>
+              <Text style={styles.instructionsText}>
+                • For produkter med størrelser: Legg til én linje per størrelse med samme produktnavn
+              </Text>
+              <Text style={styles.instructionsText}>
+                • For tilleggsvarer: Bruk &quot;Tillegg&quot; som kategori
+              </Text>
             </View>
 
             <View style={styles.exampleBox}>
