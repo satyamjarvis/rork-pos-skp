@@ -3,12 +3,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { BusinessSettingsProvider } from "@/contexts/BusinessSettingsContext";
-import { ProductsProvider } from "@/contexts/ProductsContext";
-import { OrdersProvider } from "@/contexts/OrdersContext";
-import { PrinterProvider } from "@/contexts/PrinterContext";
+import * as AuthContextModule from "@/contexts/AuthContext";
+import * as BusinessSettingsContextModule from "@/contexts/BusinessSettingsContext";
+import * as ProductsContextModule from "@/contexts/ProductsContext";
+import * as OrdersContextModule from "@/contexts/OrdersContext";
+import * as PrinterContextModule from "@/contexts/PrinterContext";
 import OfflineNotice from "@/components/OfflineNotice";
+
+const AuthProvider = AuthContextModule.AuthProvider;
+const BusinessSettingsProvider = BusinessSettingsContextModule.BusinessSettingsProvider;
+const ProductsProvider = ProductsContextModule.ProductsProvider;
+const OrdersProvider = OrdersContextModule.OrdersProvider;
+const PrinterProvider = PrinterContextModule.PrinterProvider;
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
