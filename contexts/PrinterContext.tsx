@@ -64,45 +64,50 @@ export const [PrinterProvider, usePrinter] = createContextHook(() => {
   const [scanDebugLog, setScanDebugLog] = useState<string[]>([]);
 
   useEffect(() => {
-    loadPrinters();
-    loadPrintLogs();
+    let mounted = true;
+    
+    const init = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(PRINTER_STORAGE_KEY);
+        if (mounted && stored && stored !== 'null' && stored !== 'undefined') {
+          try {
+            setPrinters(JSON.parse(stored));
+          } catch (parseError) {
+            console.error('Failed to parse printers JSON:', parseError);
+            console.error('Invalid JSON string:', stored);
+            setPrinters([]);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load printers:', error);
+      }
+      
+      try {
+        const storedLogs = await AsyncStorage.getItem(PRINT_LOG_STORAGE_KEY);
+        if (mounted && storedLogs && storedLogs !== 'null' && storedLogs !== 'undefined') {
+          try {
+            setPrintLogs(JSON.parse(storedLogs));
+          } catch (parseError) {
+            console.error('Failed to parse print logs JSON:', parseError);
+            console.error('Invalid JSON string:', storedLogs);
+            setPrintLogs([]);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load print logs:', error);
+      }
+      
+      if (mounted) {
+        setIsLoading(false);
+      }
+    };
+    
+    init();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
-
-  const loadPrinters = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(PRINTER_STORAGE_KEY);
-      if (stored && stored !== 'null' && stored !== 'undefined') {
-        try {
-          setPrinters(JSON.parse(stored));
-        } catch (parseError) {
-          console.error('Failed to parse printers JSON:', parseError);
-          console.error('Invalid JSON string:', stored);
-          setPrinters([]);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load printers:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadPrintLogs = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(PRINT_LOG_STORAGE_KEY);
-      if (stored && stored !== 'null' && stored !== 'undefined') {
-        try {
-          setPrintLogs(JSON.parse(stored));
-        } catch (parseError) {
-          console.error('Failed to parse print logs JSON:', parseError);
-          console.error('Invalid JSON string:', stored);
-          setPrintLogs([]);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load print logs:', error);
-    }
-  };
 
   const savePrinters = async (newPrinters: Printer[]) => {
     try {
