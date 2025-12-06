@@ -1091,4 +1091,5 @@ const [PrinterProviderComponent, usePrinter] = createContextHook(() => {
   }), [printers, printLogs, isLoading, isScanning, discoveredPrinters, scanProgress, scanDebugLog, addPrinter, updatePrinter, deletePrinter, printHTML, generateKitchenReceipt, printKitchenReceipt, generateWebPRNTReceipt, printToWebPRNT, printToUSB, printToUSBPrinters, printToAllPrinters, selectUSBPrinter, scanForPrinters]);
 });
 
-export { PrinterProviderComponent as PrinterProvider, usePrinter };
+export const PrinterProvider = PrinterProviderComponent;
+export { usePrinter };
