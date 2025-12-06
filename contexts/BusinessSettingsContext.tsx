@@ -33,7 +33,7 @@ const DEFAULT_SETTINGS: BusinessSettings = {
   logo: '',
 };
 
-export const [BusinessSettingsProvider, useBusinessSettings] = createContextHook(() => {
+const [BusinessSettingsProviderComponent, useBusinessSettings] = createContextHook(() => {
   const [settings, setSettings] = useState<BusinessSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
@@ -241,3 +241,6 @@ export const [BusinessSettingsProvider, useBusinessSettings] = createContextHook
     uploadLogo,
   }), [settings, isLoading, updateSettings, uploadLogo]);
 });
+
+export const BusinessSettingsProvider = BusinessSettingsProviderComponent;
+export { useBusinessSettings };

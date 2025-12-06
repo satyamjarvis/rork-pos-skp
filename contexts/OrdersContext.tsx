@@ -32,7 +32,7 @@ export interface Order {
   customerName?: string;
 }
 
-export const [OrdersProvider, useOrders] = createContextHook(() => {
+const [OrdersProviderComponent, useOrders] = createContextHook(() => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [nextOrderNumber, setNextOrderNumber] = useState(1);
@@ -370,3 +370,6 @@ export const [OrdersProvider, useOrders] = createContextHook(() => {
     clearCompletedOrders,
   }), [orders, isLoading, addOrder, updateOrderStatus, deleteOrder, clearCompletedOrders]);
 });
+
+export const OrdersProvider = OrdersProviderComponent;
+export { useOrders };

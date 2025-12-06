@@ -43,7 +43,7 @@ export interface Category {
   subcategories?: string[];
 }
 
-export const [ProductsProvider, useProducts] = createContextHook(() => {
+const [ProductsProviderComponent, useProducts] = createContextHook(() => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tilleggsvarer, setTilleggsvarer] = useState<Tilleggsvare[]>([]);
@@ -1361,3 +1361,6 @@ export const [ProductsProvider, useProducts] = createContextHook(() => {
     loadTilleggsvarer,
   }), [products, categories, tilleggsvarer, isLoading, addProduct, deleteProduct, importProducts, addCategory, updateCategory, deleteCategory, updateProductCategory, reorderProducts, reorderCategories, addTilleggsvare, updateTilleggsvare, deleteTilleggsvare, addVariant, updateVariant, deleteVariant, updateProduct, importCategories, importTilleggsvarer, loadProducts, loadCategories, loadTilleggsvarer]);
 });
+
+export const ProductsProvider = ProductsProviderComponent;
+export { useProducts };

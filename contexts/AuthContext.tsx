@@ -4,7 +4,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const [AuthProvider, useAuth] = createContextHook(() => {
+const [AuthProviderComponent, useAuth] = createContextHook(() => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -152,3 +152,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     [session, user, loading, signIn, signUp, signOut, deleteAccount, error]
   );
 });
+
+export const AuthProvider = AuthProviderComponent;
+export { useAuth };

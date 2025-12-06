@@ -54,7 +54,7 @@ export interface ScanProgress {
   message: string;
 }
 
-export const [PrinterProvider, usePrinter] = createContextHook(() => {
+const [PrinterProviderComponent, usePrinter] = createContextHook(() => {
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [printLogs, setPrintLogs] = useState<PrintLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1090,3 +1090,6 @@ export const [PrinterProvider, usePrinter] = createContextHook(() => {
     scanForPrinters,
   }), [printers, printLogs, isLoading, isScanning, discoveredPrinters, scanProgress, scanDebugLog, addPrinter, updatePrinter, deletePrinter, printHTML, generateKitchenReceipt, printKitchenReceipt, generateWebPRNTReceipt, printToWebPRNT, printToUSB, printToUSBPrinters, printToAllPrinters, selectUSBPrinter, scanForPrinters]);
 });
+
+export const PrinterProvider = PrinterProviderComponent;
+export { usePrinter };
