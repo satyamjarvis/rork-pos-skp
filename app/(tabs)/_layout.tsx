@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Calculator, ChefHat, Package, Upload } from "lucide-react-native";
+import { Calculator, ChefHat, Package } from "lucide-react-native";
 import React from "react";
 import AuthGuard from "@/components/AuthGuard";
 
@@ -44,13 +44,6 @@ export default function TabLayout() {
         options={{
           title: "Backoffice",
           tabBarIcon: ({ color }) => <Package color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="import"
-        options={{
-          title: "Import",
-          tabBarIcon: ({ color }) => <Upload color={color} />,
         }}
       />
       </Tabs>
