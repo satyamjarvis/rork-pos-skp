@@ -18,7 +18,7 @@ import { useNavigation, Stack } from 'expo-router';
 
 type OrderSizeView = 'small' | 'medium' | 'large';
 
-const KitchenScreen = React.memo(() => {
+const KitchenScreen = React.memo(function KitchenScreen() {
   const { orders, updateOrderStatus, deleteOrder } = useOrders();
   const { tilleggsvarer } = useProducts();
   const { printKitchenReceipt, printToWebPRNT, printers } = usePrinter();
